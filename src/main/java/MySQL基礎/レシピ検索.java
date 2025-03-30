@@ -13,8 +13,11 @@ public class レシピ検索 {
     private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
     private static final String DB_USER = "root";  // MySQLのユーザー名
     private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  // MySQLのパスワード（環境変数を使う場合はSystem.getenv("MYSQL_PASSWORD")）
-
+    
     public static void main(String[] args) {
+        // 環境変数MYSQL_PASSWORDの値を表示
+        //System.out.println("MySQL password: " + System.getenv("MYSQL_PASSWORD"));
+        
         Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
