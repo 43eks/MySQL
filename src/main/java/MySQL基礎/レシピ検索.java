@@ -9,19 +9,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class レシピ検索 {
-    private static final String URL = "jdbc:mysql://localhost:3306/task_manage?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-    private static final String USER = "root";
-    private static final String PASSWORD = System.getenv("MYSQL_PASSWORD");
-    // MySQL接続設定
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db";
+
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
     private static final String DB_USER = "root";  // MySQLのユーザー名
-    private static final String DB_PASSWORD = "password";  // MySQLのパスワード
+    private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  // MySQLのパスワード（環境変数を使う場合はSystem.getenv("MYSQL_PASSWORD")）
 
     public static void main(String[] args) {
+        Connection conn = null;
+        Statement stmt = null;
+        ResultSet rs = null;
+
         try {
             // MySQL接続
-            Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-            Statement stmt = conn.createStatement();
+            conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            stmt = conn.createStatement();
 
             // 不足している食材の取得クエリ
             String query = "SELECT DISTINCT i.name " +
@@ -29,7 +30,7 @@ public class レシピ検索 {
                            "LEFT JOIN user_ingredients u ON i.name = u.name " +
                            "WHERE u.name IS NULL";
 
-            ResultSet rs = stmt.executeQuery(query);
+            rs = stmt.executeQuery(query);
 
             // 不足している食材のリストを作成
             List<String> missingIngredients = new ArrayList<>();
@@ -47,13 +48,19 @@ public class レシピ検索 {
                 }
             }
 
-            // リソースをクローズ
-            rs.close();
-            stmt.close();
-            conn.close();
-
         } catch (SQLException e) {
+            System.out.println("データベース接続エラー: " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            // リソースを確実にクローズ
+            try {
+                if (rs != null) rs.close();
+                if (stmt != null) stmt.close();
+                if (conn != null) conn.close();
+            } catch (SQLException e) {
+                System.out.println("リソースのクローズエラー: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 }
