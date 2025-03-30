@@ -13,11 +13,8 @@ public class レシピ検索 {
     private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
     private static final String DB_USER = "root";  // MySQLのユーザー名
     private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  // MySQLのパスワード（環境変数を使う場合はSystem.getenv("MYSQL_PASSWORD")）
-    
+
     public static void main(String[] args) {
-        // 環境変数MYSQL_PASSWORDの値を表示
-        //System.out.println("MySQL password: " + System.getenv("MYSQL_PASSWORD"));
-        
         Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
@@ -27,27 +24,45 @@ public class レシピ検索 {
             conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
             stmt = conn.createStatement();
 
-            // 不足している食材の取得クエリ
-            String query = "SELECT DISTINCT i.name " +
-                           "FROM ingredients i " +
-                           "LEFT JOIN user_ingredients u ON i.name = u.name " +
-                           "WHERE u.name IS NULL";
+            // ユーザーの冷蔵庫の食材を取得
+            String fridgeQuery = "SELECT name FROM user_ingredients";
+            rs = stmt.executeQuery(fridgeQuery);
 
-            rs = stmt.executeQuery(query);
-
-            // 不足している食材のリストを作成
-            List<String> missingIngredients = new ArrayList<>();
+            // 冷蔵庫にある食材リストを作成
+            List<String> fridgeIngredients = new ArrayList<>();
             while (rs.next()) {
-                missingIngredients.add(rs.getString("name"));
+                fridgeIngredients.add(rs.getString("name"));
             }
 
-            // 不足している食材を表示
-            if (missingIngredients.isEmpty()) {
-                System.out.println("すべての食材が揃っています！");
+            // 冷蔵庫にある食材をクォート付きでリストにする
+            List<String> quotedIngredients = new ArrayList<>();
+            for (String ingredient : fridgeIngredients) {
+                quotedIngredients.add("'" + ingredient + "'");
+            }
+
+            // 作れるレシピを検索
+            String recipeQuery = "SELECT r.name " +
+                                 "FROM recipes r " +
+                                 "JOIN ingredients i ON r.id = i.recipe_id " +
+                                 "WHERE NOT EXISTS ( " +
+                                 "  SELECT 1 FROM ingredients i2 " +
+                                 "  WHERE i2.recipe_id = r.id " +
+                                 "  AND i2.name NOT IN (" + String.join(",", quotedIngredients) + ")" +
+                                 ")";
+            rs = stmt.executeQuery(recipeQuery);
+
+            // 作れるレシピを表示
+            List<String> availableRecipes = new ArrayList<>();
+            while (rs.next()) {
+                availableRecipes.add(rs.getString("name"));
+            }
+
+            if (availableRecipes.isEmpty()) {
+                System.out.println("冷蔵庫にある食材では作れるレシピがありません！");
             } else {
-                System.out.println("不足している食材:");
-                for (String ingredient : missingIngredients) {
-                    System.out.println("- " + ingredient);
+                System.out.println("冷蔵庫にある食材で作れるレシピ:");
+                for (String recipe : availableRecipes) {
+                    System.out.println("- " + recipe);
                 }
             }
 
