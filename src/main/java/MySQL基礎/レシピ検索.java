@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class レシピ検索 {
-
+    private static final String URL = "jdbc:mysql://localhost:3306/task_manage?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+    private static final String USER = "root";
+    private static final String PASSWORD = System.getenv("MYSQL_PASSWORD");
     // MySQL接続設定
     private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db";
     private static final String DB_USER = "root";  // MySQLのユーザー名
