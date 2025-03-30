@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class レシピ検索 {
 
@@ -15,6 +16,19 @@ public class レシピ検索 {
     private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  // MySQLのパスワード（環境変数を使う場合はSystem.getenv("MYSQL_PASSWORD")）
 
     public static void main(String[] args) {
+        // ユーザから冷蔵庫の食材を入力してもらう
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("冷蔵庫にある食材をカンマ区切りで入力してください:");
+        String input = scanner.nextLine();
+        
+        // 入力された食材をリストに分割
+        String[] ingredients = input.split(",");
+        List<String> userIngredients = new ArrayList<>();
+        for (String ingredient : ingredients) {
+            userIngredients.add(ingredient.trim());
+        }
+
+        // MySQL接続
         Connection conn = null;
         Statement stmt = null;
         ResultSet rs = null;
@@ -24,43 +38,30 @@ public class レシピ検索 {
             conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
             stmt = conn.createStatement();
 
-            // ユーザーの冷蔵庫の食材を取得
-            String fridgeQuery = "SELECT name FROM user_ingredients";
-            rs = stmt.executeQuery(fridgeQuery);
-
-            // 冷蔵庫にある食材リストを作成
-            List<String> fridgeIngredients = new ArrayList<>();
-            while (rs.next()) {
-                fridgeIngredients.add(rs.getString("name"));
+            // 入力された食材に基づいて作れるレシピを検索するクエリ
+            StringBuilder queryBuilder = new StringBuilder("SELECT DISTINCT r.name FROM recipes r " +
+                    "JOIN ingredients i ON r.id = i.recipe_id WHERE ");
+            for (int i = 0; i < userIngredients.size(); i++) {
+                queryBuilder.append("i.name = '").append(userIngredients.get(i)).append("'");
+                if (i < userIngredients.size() - 1) {
+                    queryBuilder.append(" OR ");
+                }
             }
 
-            // 冷蔵庫にある食材をクォート付きでリストにする
-            List<String> quotedIngredients = new ArrayList<>();
-            for (String ingredient : fridgeIngredients) {
-                quotedIngredients.add("'" + ingredient + "'");
-            }
+            String query = queryBuilder.toString();
+            rs = stmt.executeQuery(query);
 
-            // 作れるレシピを検索
-            String recipeQuery = "SELECT r.name " +
-                                 "FROM recipes r " +
-                                 "JOIN ingredients i ON r.id = i.recipe_id " +
-                                 "WHERE NOT EXISTS ( " +
-                                 "  SELECT 1 FROM ingredients i2 " +
-                                 "  WHERE i2.recipe_id = r.id " +
-                                 "  AND i2.name NOT IN (" + String.join(",", quotedIngredients) + ")" +
-                                 ")";
-            rs = stmt.executeQuery(recipeQuery);
-
-            // 作れるレシピを表示
+            // 作れるレシピをリストに追加
             List<String> availableRecipes = new ArrayList<>();
             while (rs.next()) {
                 availableRecipes.add(rs.getString("name"));
             }
 
+            // 作れるレシピを表示
             if (availableRecipes.isEmpty()) {
-                System.out.println("冷蔵庫にある食材では作れるレシピがありません！");
+                System.out.println("現在、冷蔵庫にある食材では作れるレシピはありません。");
             } else {
-                System.out.println("冷蔵庫にある食材で作れるレシピ:");
+                System.out.println("作れるレシピ:");
                 for (String recipe : availableRecipes) {
                     System.out.println("- " + recipe);
                 }
