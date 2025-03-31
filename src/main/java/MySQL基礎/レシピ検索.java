@@ -2,54 +2,62 @@ package MySQL基礎;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
 
 public class レシピ検索 {
 
     private static final String DB_URL = "jdbc:mysql://localhost:3306/recipe_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-    private static final String DB_USER = "root";  // MySQLのユーザー名
-    private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  // MySQLのパスワード（環境変数を使う場合はSystem.getenv("MYSQL_PASSWORD")）
-    
+    private static final String DB_USER = "root";  
+    private static final String DB_PASSWORD = System.getenv("MYSQL_PASSWORD");  
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
         while (true) {
-            // 冷蔵庫の食材を入力
-            System.out.println("冷蔵庫にある食材をカンマ区切りで入力してください:");
+            // ユーザーに食材を入力してもらう
+            System.out.println("冷蔵庫にある食材をカンマ区切りで入力してください (例: 玉ねぎ,にんじん,じゃがいも):");
             String input = scanner.nextLine().trim();
 
-            // ユーザーが終了を希望した場合
+            // 終了条件
             if (input.equalsIgnoreCase("終了")) {
                 System.out.println("終了します。");
                 break;
             }
 
-            // MySQL接続
+            // 食材をリスト化
+            String[] ingredients = input.split(",");
+            for (int i = 0; i < ingredients.length; i++) {
+                ingredients[i] = ingredients[i].trim();
+            }
+
+            // SQLクエリ作成
+            String sql = "SELECT DISTINCT r.name FROM recipes r " +
+                         "JOIN ingredients i ON r.id = i.recipe_id " +
+                         "WHERE i.name IN (" + String.join(",", Collections.nCopies(ingredients.length, "?")) + ")";
+
             try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-                 Statement stmt = conn.createStatement()) {
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-                // 食材が存在するレシピを検索するクエリ
-                String query = "SELECT DISTINCT r.name " +
-                               "FROM recipes r " +
-                               "JOIN ingredients i ON r.id = i.recipe_id " +
-                               "WHERE i.name IN ('" + input.replace(",", "','") + "') " +
-                               "GROUP BY r.id " +
-                               "HAVING COUNT(DISTINCT i.name) = (SELECT COUNT(*) FROM ingredients WHERE recipe_id = r.id)";
-                
-                ResultSet rs = stmt.executeQuery(query);
+                // プレースホルダに値を設定
+                for (int i = 0; i < ingredients.length; i++) {
+                    pstmt.setString(i + 1, ingredients[i]);
+                }
 
-                // 作れるレシピをリストに追加
+                // クエリ実行
+                ResultSet rs = pstmt.executeQuery();
                 List<String> availableRecipes = new ArrayList<>();
+
                 while (rs.next()) {
                     availableRecipes.add(rs.getString("name"));
                 }
 
-                // 結果を表示
+                // 結果表示
                 if (availableRecipes.isEmpty()) {
                     System.out.println("現在の食材では作れるレシピはありません。");
                 } else {
@@ -64,10 +72,10 @@ public class レシピ検索 {
                 e.printStackTrace();
             }
 
-            // 次の入力を促す
-            System.out.println("もう一度食材を入力するには、Enterキーを押してください。終了するには「終了」と入力してください。");
+            // 継続確認
+            System.out.println("もう一度食材を入力しますか？ (y/n)");
             String continueInput = scanner.nextLine().trim();
-            if (continueInput.equalsIgnoreCase("終了")) {
+            if (!continueInput.equalsIgnoreCase("y")) {
                 break;
             }
         }
