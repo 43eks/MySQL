@@ -1,18 +1,31 @@
 package MySQL基礎;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class ワークフロー {
-    private static final String URL = System.getenv("DB_URL"); // 環境変数から取得
-    private static final String USER = System.getenv("DB_USER");
-    private static final String PASSWORD = System.getenv("DB_PASSWORD");
+    public static void addUser(String username, String email, String hashedPassword, String role) {
+        String sql = "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)";
 
-    public static Connection getConnection() throws SQLException {
-        if (URL == null || USER == null || PASSWORD == null) {
-            throw new IllegalStateException("環境変数 DB_URL, DB_USER, DB_PASSWORD のいずれかが設定されていません。");
+        try (Connection conn = ワークフロー.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, username);
+            stmt.setString(2, email);
+            stmt.setString(3, hashedPassword);
+            stmt.setString(4, role);
+
+            stmt.executeUpdate();
+            System.out.println("ユーザーを追加しました: " + username);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
+
+	private static Connection getConnection() {
+		// TODO 自動生成されたメソッド・スタブ
+		return null;
+	}
 }
