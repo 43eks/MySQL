@@ -2,9 +2,9 @@ package MySQL基礎;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +26,7 @@ public class レシピ検索GUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("レシピ検索アプリ");
-        
+
         Label label = new Label("冷蔵庫にある食材をカンマ区切りで入力してください:");
         TextField inputField = new TextField();
         Button searchButton = new Button("検索");
@@ -56,25 +56,27 @@ public class レシピ検索GUI extends Application {
 
     private List<String> searchRecipes(String ingredients) {
         List<String> availableRecipes = new ArrayList<>();
+        String[] ingredientList = ingredients.split(",");
         
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-             Statement stmt = conn.createStatement()) {
-            
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
             String query = "SELECT DISTINCT r.name " +
                            "FROM recipes r " +
                            "JOIN ingredients i ON r.id = i.recipe_id " +
-                           "WHERE i.name IN ('" + ingredients.replace(",", "','") + "') " +
+                           "WHERE i.name IN (" + String.join(",", ingredientList) + ") " +
                            "GROUP BY r.id " +
                            "HAVING COUNT(DISTINCT i.name) = (SELECT COUNT(*) FROM ingredients WHERE recipe_id = r.id)";
             
-            ResultSet rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                availableRecipes.add(rs.getString("name"));
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    availableRecipes.add(rs.getString("name"));
+                }
             }
+
         } catch (SQLException e) {
             availableRecipes.add("データベース接続エラー: " + e.getMessage());
         }
-        
+
         return availableRecipes;
     }
 
